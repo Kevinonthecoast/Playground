@@ -81,7 +81,7 @@ window.addEventListener('resize', resize);
 const GROUND=148, GRAVITY=0.45, JUMP_V=-9.5, CW=58, CH=76;
 
 let mode='loading', score=0, tick=0, spd=2.8;
-let anim=0, animT=0, spawnT=0, spawnI=90;
+let anim=0, animT=0, spawnT=0, spawnI=60;
 let hi = parseInt(localStorage.getItem('elfHi')||'0');
 let leaderboard = [];
 
@@ -120,25 +120,32 @@ function burst(x,y) {
 }
 
 // ── Firebase leaderboard ──────────────────────────
+// We fetch all scores then sort client-side. Using Firebase's `orderBy`
+// requires declaring `.indexOn: "score"` in the database rules; without it
+// the query silently returns nothing on some accounts.
 async function fetchLeaderboard() {
   if (!FIREBASE_URL || FIREBASE_URL==='YOUR_FIREBASE_URL') return;
   try {
-    const res = await fetch(FIREBASE_URL+'/scores.json?orderBy="score"&limitToLast=10');
+    const res = await fetch(FIREBASE_URL+'/scores.json');
+    if (!res.ok) { console.warn('Firebase fetch failed:', res.status); return; }
     const data = await res.json();
     if (!data) { leaderboard=[]; return; }
     leaderboard = Object.values(data)
+      .filter(e => e && typeof e.score === 'number' && e.name)
       .sort((a,b)=>b.score-a.score)
       .slice(0,10);
-  } catch(e) { leaderboard=[]; }
+    console.log('Leaderboard loaded:', leaderboard.length, 'entries');
+  } catch(e) { console.warn('Leaderboard error:', e); }
 }
 async function pushScore(name, score) {
   if (!FIREBASE_URL || FIREBASE_URL==='YOUR_FIREBASE_URL') return;
   try {
-    await fetch(FIREBASE_URL+'/scores.json', {
+    const res = await fetch(FIREBASE_URL+'/scores.json', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify({name, score, date: Date.now()})
     });
+    if (!res.ok) console.warn('Push failed:', res.status, await res.text());
     await fetchLeaderboard();
   } catch(e){}
 }
@@ -316,7 +323,7 @@ function drawBoard(){
 // ── Reset ─────────────────────────────────────────
 function reset(){
   mode='play';score=0;spd=2.8;tick=0;
-  anim=0;animT=0;spawnT=0;spawnI=90;
+  anim=0;animT=0;spawnT=0;spawnI=60;
   obs=[];parts=[];
   P.x=70;P.y=GROUND;P.vy=0;
   P.jump=false;P.slide=false;P.slideT=0;P.dead=false;
@@ -381,12 +388,12 @@ function loop(){
   }
   if(mode==='play'){
     score++;
-    spd=2.8+score*0.0012;
+    spd=2.8+score*0.0024;
     animT++;if(animT>=8){animT=0;anim=1-anim;}
     if(P.jump){P.vy+=GRAVITY;P.y+=P.vy;if(P.y>=GROUND){P.y=GROUND;P.vy=0;P.jump=false;}}
     if(P.jump) P.slide=false;
     bushes.forEach(b=>{b.x-=spd*0.55;if(b.x<-15)b.x=GW+15;});
-    spawnT++;spawnI=Math.max(55,90-Math.floor(score/600));
+    spawnT++;spawnI=Math.max(37,60-Math.floor(score/300));
     if(spawnT>=spawnI){spawnObs();spawnT=0;}
     for(let i=obs.length-1;i>=0;i--){
       obs[i].x-=spd;
