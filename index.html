@@ -645,8 +645,17 @@ function update(){
     bushes.forEach(b=>{b.x-=spd*0.55;if(b.x<-15)b.x=GW+15;});
     grassTufts.forEach(g=>{g.x-=spd;if(g.x<-3)g.x=GW+3;});
     flowers.forEach(f=>{f.x-=spd;if(f.x<-3)f.x=GW+3;});
-    spawnT++;spawnI=Math.max(37,60-Math.floor(score/300));
-    if(spawnT>=spawnI){spawnObs();spawnT=0;}
+    spawnT++;
+    if(spawnT>=spawnI){
+      spawnObs();
+      spawnT=0;
+      // Recompute next interval. Base shrinks with score (game speeds up),
+      // and the random ± window grows so spacing becomes unpredictable later.
+      const base = Math.max(37, 60 - Math.floor(score/300));
+      const chaos = Math.min(38, score/180);          // 0 → 38 by score ~7000
+      const variation = (Math.random()*2 - 1) * chaos;
+      spawnI = Math.max(28, Math.min(95, Math.round(base + variation)));
+    }
     for(let i=obs.length-1;i>=0;i--){
       obs[i].x-=spd;
       if(obs[i].x<-40){obs.splice(i,1);continue;}
