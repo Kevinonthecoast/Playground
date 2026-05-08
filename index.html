@@ -97,38 +97,40 @@ let obs=[], clouds=[], trees=[], bushes=[], parts=[];
 
 function spawnObs() {
   const r=Math.random();
-  if      (r<0.35) obs.push({t:'rock',  x:GW+5,y:GROUND,   w:14,h:20});
-  else if (r<0.68) obs.push({t:'log',   x:GW+5,y:GROUND,   w:22,h:14});
-  else             obs.push({t:'branch',x:GW+5,y:GROUND-42,w:30,h:6});
+  if      (r<0.25) obs.push({t:'snowman',x:GW+5,y:GROUND,   w:22,h:34});  // jump
+  else if (r<0.50) obs.push({t:'xtree',  x:GW+5,y:GROUND,   w:24,h:38});  // jump
+  else if (r<0.75) obs.push({t:'bell',   x:GW+5,y:GROUND-40,w:20,h:20});  // slide
+  else             obs.push({t:'star',   x:GW+5,y:GROUND-40,w:22,h:20});  // slide
 }
 function hits(o) {
-  if(o.t==='branch'){
-    // Branch hangs from sky — collision spans entire column above slide level
-    // so jumps cannot clear it. Bottom = o.y + o.h + 10 (incl. hanging leaves)
-    return P.bx<o.x+o.w && P.bx+P.bw>o.x && P.by<o.y+o.h+10;
+  if(o.t==='bell' || o.t==='star'){
+    // Hanging from sky — column collision (jump can't clear)
+    return P.bx<o.x+o.w && P.bx+P.bw>o.x && P.by<o.y+o.h;
   }
   const oy=o.y-o.h;
   return P.bx<o.x+o.w && P.bx+P.bw>o.x && P.by<oy+o.h && P.by+P.bh>oy;
 }
-let mountains=[], hills=[], grassTufts=[];
-// Cached gradients — rebuilt once instead of every frame
+let mountains=[], hills=[], pines=[], snowflakes=[];
+// Cached gradients
 let SKY_GRAD=null, GROUND_GRAD=null;
 function rebuildGradients(){
   SKY_GRAD = ctx.createLinearGradient(0,0,0,GROUND);
-  SKY_GRAD.addColorStop(0,'#a8d4f0');
-  SKY_GRAD.addColorStop(1,'#e8f4e0');
+  SKY_GRAD.addColorStop(0,'#5a6f9c');   // dusky blue
+  SKY_GRAD.addColorStop(0.6,'#a8b8d8');  // pale blue
+  SKY_GRAD.addColorStop(1,'#e8d8e8');   // pinkish horizon
   GROUND_GRAD = ctx.createLinearGradient(0,GROUND,0,GH);
-  GROUND_GRAD.addColorStop(0,'#5a8c3f');
-  GROUND_GRAD.addColorStop(1,'#3d6b27');
+  GROUND_GRAD.addColorStop(0,'#fafdff');  // bright snow top
+  GROUND_GRAD.addColorStop(1,'#c8d8e8');  // bluish snow shadow
 }
 function initBG() {
-  clouds=[]; trees=[]; bushes=[]; mountains=[]; hills=[]; grassTufts=[];
-  for(let i=0;i<3;i++) clouds.push({x:i*120+30,y:15+Math.random()*15,w:28+Math.random()*12});
-  for(let i=0;i<3;i++) mountains.push({x:i*120+Math.random()*30,h:28+Math.random()*12});
+  mountains=[]; hills=[]; pines=[]; snowflakes=[];
+  for(let i=0;i<3;i++) mountains.push({x:i*120+Math.random()*30,h:32+Math.random()*15});
   for(let i=0;i<4;i++) hills.push({x:i*90+Math.random()*30,h:12+Math.random()*6});
-  for(let i=0;i<5;i++) trees.push({x:i*70+Math.random()*15,h:20+Math.random()*10,type:i%3});
-  for(let i=0;i<5;i++) bushes.push({x:i*70+Math.random()*15,r:4+Math.random()*3});
-  for(let i=0;i<20;i++) grassTufts.push({x:i*16+Math.random()*4,h:1+Math.random()*1.5});
+  for(let i=0;i<6;i++) pines.push({x:i*55+Math.random()*20,h:24+Math.random()*12});
+  for(let i=0;i<35;i++) snowflakes.push({
+    x:Math.random()*GW, y:Math.random()*GH,
+    r:0.6+Math.random()*1.4, vx:-0.15-Math.random()*0.25, vy:0.3+Math.random()*0.5
+  });
   rebuildGradients();
 }
 function burst(x,y) {
@@ -219,11 +221,41 @@ function drawElf(cx,by,slide,af,dead) {
   ctx.ellipse(0,3,CW*0.5,5,0,0,Math.PI*2); ctx.fill();
   if(dead){
     ctx.rotate(Math.PI/2); ctx.drawImage(elfImg,-CH/2,-CW/2,CH,CW);
+    // Tear drops on the face (rotated 90° so face is to the right)
+    ctx.fillStyle='#3a8eff';
+    ctx.beginPath();ctx.ellipse(-CH*0.42,-3,1.2,2.5,0,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.ellipse(-CH*0.36,3,1.2,2.5,0,0,Math.PI*2);ctx.fill();
+    // Falling tear drop
+    const tearOffset = (tick % 30) * 0.5;
+    ctx.fillStyle='rgba(58,142,255,0.7)';
+    ctx.beginPath();ctx.ellipse(-CH*0.42-tearOffset,-3,1,2,0,0,Math.PI*2);ctx.fill();
   }else if(slide){
     ctx.drawImage(elfImg,-CW*0.9,-CH*0.45,CW*1.8,CH*0.45);
   }else{
     ctx.rotate(0.08); ctx.translate(0,af===0?0:-1.5);
     ctx.drawImage(elfImg,-CW/2,-CH,CW,CH);
+    // Smile + sparkles when jumping
+    if(P.jump){
+      // Smile arc on face
+      ctx.strokeStyle='#cc0000';
+      ctx.lineWidth=1.5;
+      ctx.beginPath();
+      ctx.arc(0,-CH*0.74,3,0.25,Math.PI-0.25);
+      ctx.stroke();
+      ctx.lineWidth=1;
+      // Joyful sparkles around character
+      const t = tick * 0.15;
+      ctx.fillStyle='#ffd700';
+      for(let i=0;i<3;i++){
+        const a = i*Math.PI*2/3 + t;
+        const r = 22;
+        const sx = Math.cos(a)*r;
+        const sy = -CH*0.55 + Math.sin(a)*r*0.5;
+        ctx.beginPath();
+        ctx.moveTo(sx-2,sy);ctx.lineTo(sx,sy-2);ctx.lineTo(sx+2,sy);ctx.lineTo(sx,sy+2);
+        ctx.closePath();ctx.fill();
+      }
+    }
   }
   ctx.restore();
 }
@@ -232,203 +264,280 @@ function drawElf(cx,by,slide,af,dead) {
 function box(x,y,w,h,c){ctx.fillStyle=c;ctx.fillRect(x,y,w,h);}
 
 function drawBG(){
-  // Sky (cached gradient)
+  // Twilight sky
   ctx.fillStyle = SKY_GRAD;
   ctx.fillRect(0,0,GW,GH);
 
-  // Soft sun (single circle)
-  ctx.fillStyle='rgba(255,235,170,0.35)';
-  ctx.beginPath();ctx.arc(GW-40,28,12,0,Math.PI*2);ctx.fill();
-  ctx.fillStyle='#fff5c0';
-  ctx.beginPath();ctx.arc(GW-40,28,6,0,Math.PI*2);ctx.fill();
-
-  // Distant mountains — washed out, blue tint
-  ctx.fillStyle='#a8b0c8';
+  // Distant snowy mountains
+  ctx.fillStyle='#9aa8c8';
   mountains.forEach(m=>{
     ctx.beginPath();
     ctx.moveTo(m.x,GROUND-12);
     ctx.lineTo(m.x+22,GROUND-12-m.h);
     ctx.lineTo(m.x+44,GROUND-12);
     ctx.closePath();ctx.fill();
+    // Snow cap
+    ctx.fillStyle='#fff';
+    ctx.beginPath();
+    ctx.moveTo(m.x+16,GROUND-12-m.h*0.7);
+    ctx.lineTo(m.x+22,GROUND-12-m.h);
+    ctx.lineTo(m.x+28,GROUND-12-m.h*0.7);
+    ctx.closePath();ctx.fill();
+    ctx.fillStyle='#9aa8c8';
   });
 
-  // Rolling hills — single muted layer
-  ctx.fillStyle='#94b890';
+  // Snowy hills
+  ctx.fillStyle='#d8e0ec';
   hills.forEach(h=>{
     ctx.beginPath();
-    ctx.ellipse(h.x,GROUND-2,26,h.h,0,Math.PI,2*Math.PI);
+    ctx.ellipse(h.x,GROUND-2,28,h.h,0,Math.PI,2*Math.PI);
     ctx.fill();
   });
 
-  // Simple clouds (single arc cluster)
-  ctx.fillStyle='rgba(255,255,255,0.85)';
-  clouds.forEach(c=>{
-    ctx.beginPath();
-    ctx.arc(c.x+c.w*0.3,c.y+3,5,0,Math.PI*2);
-    ctx.arc(c.x+c.w*0.55,c.y,7,0,Math.PI*2);
-    ctx.arc(c.x+c.w*0.8,c.y+3,5,0,Math.PI*2);
-    ctx.fill();
-  });
-
-  // Trees — washed out / smaller (faded into background)
-  trees.forEach(t=>{
-    // Trunk (thin, faded)
-    ctx.fillStyle='#7a614a';
-    ctx.fillRect(t.x-1,GROUND-t.h*0.25,2,t.h*0.25);
-    // Foliage — single muted blob
-    ctx.fillStyle = t.type===0 ? '#7aa07a' : t.type===1 ? '#85b078' : '#88a878';
-    if(t.type===0){
-      // Pine — simple triangle
+  // Background pine trees with snow caps (washed-out, dark green base)
+  pines.forEach(p=>{
+    // Trunk
+    ctx.fillStyle='#5c3d1e';
+    ctx.fillRect(p.x-1,GROUND-p.h*0.2,2,p.h*0.2);
+    // Pine triangles (3 layers)
+    for(let i=0;i<3;i++){
+      const ly=GROUND-p.h+i*p.h*0.27;
+      const lw=10-i*2;
+      ctx.fillStyle = i===0?'#1a4a1a':i===1?'#1f5a1f':'#256a25';
       ctx.beginPath();
-      ctx.moveTo(t.x-7,GROUND-t.h*0.25);
-      ctx.lineTo(t.x,GROUND-t.h);
-      ctx.lineTo(t.x+7,GROUND-t.h*0.25);
+      ctx.moveTo(p.x-lw,ly+p.h*0.32);
+      ctx.lineTo(p.x,ly);
+      ctx.lineTo(p.x+lw,ly+p.h*0.32);
       ctx.closePath();ctx.fill();
-    } else {
+      // Snow on top of each layer
+      ctx.fillStyle='#fff';
       ctx.beginPath();
-      ctx.arc(t.x,GROUND-t.h*0.6,t.h*0.32,0,Math.PI*2);
-      ctx.fill();
+      ctx.moveTo(p.x-lw*0.6,ly+p.h*0.18);
+      ctx.lineTo(p.x,ly);
+      ctx.lineTo(p.x+lw*0.6,ly+p.h*0.18);
+      ctx.closePath();ctx.fill();
     }
   });
 
-  // Ground (cached gradient)
+  // Snow ground
   ctx.fillStyle = GROUND_GRAD;
   ctx.fillRect(0,GROUND,GW,GH-GROUND);
-  // Edge line
-  ctx.fillStyle='#3d6b27';
+  // Edge line (subtle blue shadow)
+  ctx.fillStyle='#a8c0d8';
   ctx.fillRect(0,GROUND,GW,1);
 
-  // Sparse grass tufts (subtle)
-  ctx.fillStyle='#6ba63a';
-  grassTufts.forEach(g=>{
-    ctx.fillRect(g.x,GROUND+1,1,g.h);
-  });
-
-  // Sparse foreground bushes — single muted blob (no longer competes with obstacles)
-  ctx.fillStyle='#5a8a4a';
-  bushes.forEach(b=>{
+  // Falling snowflakes (drawn here, in front of bg)
+  ctx.fillStyle='rgba(255,255,255,0.9)';
+  snowflakes.forEach(s=>{
     ctx.beginPath();
-    ctx.arc(b.x,GROUND-b.r*0.5,b.r*0.8,0,Math.PI*2);
+    ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
     ctx.fill();
   });
 }
 
 function drawObs(o){
-  if(o.t==='rock'){
-    const cx=o.x+o.w/2, cy=o.y-o.h/2;
-    // Shadow
-    ctx.fillStyle='rgba(0,0,0,0.25)';
-    ctx.beginPath();ctx.ellipse(cx,o.y+1,o.w/2+1,2,0,0,Math.PI*2);ctx.fill();
-    // Rock body (rounded)
-    ctx.fillStyle='#5d6470';
+  const cx = o.x + o.w/2;
+  // Soft shadow on snow under each obstacle (except hanging ones)
+  if(o.t==='snowman' || o.t==='xtree'){
+    ctx.fillStyle='rgba(60,80,120,0.25)';
     ctx.beginPath();
-    ctx.ellipse(cx,cy,o.w/2,o.h/2,0,0,Math.PI*2);
+    ctx.ellipse(cx,o.y+1,o.w/2+2,2.5,0,0,Math.PI*2);
     ctx.fill();
-    // Top highlight
-    ctx.fillStyle='#8a92a0';
+  }
+
+  if(o.t==='snowman'){
+    // === SNOWMAN === (jump over)
+    const baseY = o.y;
+    // Bottom ball
+    ctx.fillStyle='#fff';
+    ctx.beginPath();ctx.arc(cx,baseY-9,10,0,Math.PI*2);ctx.fill();
+    // Middle ball
+    ctx.beginPath();ctx.arc(cx,baseY-22,7.5,0,Math.PI*2);ctx.fill();
+    // Head
+    ctx.beginPath();ctx.arc(cx,baseY-32,5.5,0,Math.PI*2);ctx.fill();
+    // Outline (for contrast against snowy bg)
+    ctx.strokeStyle='#5a7090';
+    ctx.lineWidth=1;
+    ctx.beginPath();ctx.arc(cx,baseY-9,10,0,Math.PI*2);ctx.stroke();
+    ctx.beginPath();ctx.arc(cx,baseY-22,7.5,0,Math.PI*2);ctx.stroke();
+    ctx.beginPath();ctx.arc(cx,baseY-32,5.5,0,Math.PI*2);ctx.stroke();
+    // Eyes
+    ctx.fillStyle='#1a1a1a';
+    ctx.fillRect(cx-2,baseY-33,1.5,1.5);
+    ctx.fillRect(cx+1,baseY-33,1.5,1.5);
+    // Carrot nose
+    ctx.fillStyle='#ff8c1a';
     ctx.beginPath();
-    ctx.ellipse(cx-1,cy-2,o.w/2-2,o.h/2-3,0,Math.PI,2*Math.PI);
+    ctx.moveTo(cx,baseY-31);
+    ctx.lineTo(cx+5,baseY-30.5);
+    ctx.lineTo(cx,baseY-30);
+    ctx.closePath();ctx.fill();
+    // Smile (small dots)
+    ctx.fillStyle='#1a1a1a';
+    ctx.fillRect(cx-2,baseY-29,1,1);
+    ctx.fillRect(cx,baseY-28.5,1,1);
+    ctx.fillRect(cx+2,baseY-29,1,1);
+    // Top hat
+    ctx.fillStyle='#1a1a1a';
+    ctx.fillRect(cx-6,baseY-38,12,1);  // brim
+    ctx.fillRect(cx-4,baseY-44,8,6);   // top
+    // Hat band (red)
+    ctx.fillStyle='#cc2200';
+    ctx.fillRect(cx-4,baseY-39,8,1);
+    // Red scarf
+    ctx.fillStyle='#cc2200';
+    ctx.fillRect(cx-7,baseY-26,14,2.5);
+    ctx.fillRect(cx-8,baseY-26,2.5,6); // dangling end
+    // Buttons
+    ctx.fillStyle='#1a1a1a';
+    ctx.beginPath();ctx.arc(cx,baseY-19,1,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.arc(cx,baseY-15,1,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.arc(cx,baseY-11,1,0,Math.PI*2);ctx.fill();
+    // Stick arms
+    ctx.strokeStyle='#5c3d1e';
+    ctx.lineWidth=1.5;
+    ctx.beginPath();
+    ctx.moveTo(cx-6,baseY-22);ctx.lineTo(cx-12,baseY-26);
+    ctx.moveTo(cx+6,baseY-22);ctx.lineTo(cx+12,baseY-26);
+    ctx.stroke();
+
+  } else if(o.t==='xtree'){
+    // === CHRISTMAS TREE === (jump over)
+    const baseY = o.y;
+    // Trunk
+    ctx.fillStyle='#5c3d1e';
+    ctx.fillRect(cx-2,baseY-3,4,3);
+    // Tree layers (4 triangles, deep green)
+    for(let i=0;i<4;i++){
+      const ly = baseY - 3 - i*8;
+      const lw = 12 - i*1.8;
+      ctx.fillStyle = i===0?'#0d4d0d':i===1?'#136213':i===2?'#1a7a1a':'#229226';
+      ctx.beginPath();
+      ctx.moveTo(cx-lw,ly);
+      ctx.lineTo(cx,ly-10);
+      ctx.lineTo(cx+lw,ly);
+      ctx.closePath();ctx.fill();
+      // Snow on layer edges
+      ctx.fillStyle='#fff';
+      ctx.beginPath();
+      ctx.moveTo(cx-lw,ly);
+      ctx.lineTo(cx-lw*0.6,ly-2);
+      ctx.lineTo(cx-lw*0.3,ly);
+      ctx.closePath();ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(cx+lw*0.3,ly);
+      ctx.lineTo(cx+lw*0.6,ly-2);
+      ctx.lineTo(cx+lw,ly);
+      ctx.closePath();ctx.fill();
+    }
+    // Star on top
+    ctx.fillStyle='#ffd700';
+    const sty = baseY - 3 - 4*8 - 10;
+    ctx.beginPath();
+    for(let i=0;i<10;i++){
+      const a = -Math.PI/2 + i*Math.PI/5;
+      const r = i%2===0 ? 4 : 1.8;
+      const sx = cx + Math.cos(a)*r;
+      const sy = sty + Math.sin(a)*r;
+      if(i===0) ctx.moveTo(sx,sy); else ctx.lineTo(sx,sy);
+    }
+    ctx.closePath();ctx.fill();
+    // Ornaments
+    const orn = [{dx:-4,dy:-10,c:'#ff3344'},{dx:5,dy:-16,c:'#ffd700'},
+                 {dx:-3,dy:-22,c:'#3aa3ff'},{dx:4,dy:-28,c:'#ff3344'},
+                 {dx:-2,dy:-6,c:'#3aa3ff'}];
+    orn.forEach(p=>{
+      ctx.fillStyle=p.c;
+      ctx.beginPath();ctx.arc(cx+p.dx,baseY+p.dy,1.3,0,Math.PI*2);ctx.fill();
+    });
+
+  } else if(o.t==='bell'){
+    // === HANGING BELL === (slide under)
+    const visY = o.y + o.h - 14; // top of bell
+    // Red ribbon string from sky
+    ctx.strokeStyle='#cc2200';
+    ctx.lineWidth=1.5;
+    ctx.beginPath();
+    ctx.moveTo(cx,0); ctx.lineTo(cx,visY);
+    ctx.stroke();
+    ctx.lineWidth=1;
+    // Red bow at top of bell
+    ctx.fillStyle='#cc2200';
+    ctx.beginPath();
+    ctx.moveTo(cx-4,visY-2);ctx.lineTo(cx-1,visY);ctx.lineTo(cx-4,visY+2);
+    ctx.closePath();ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(cx+4,visY-2);ctx.lineTo(cx+1,visY);ctx.lineTo(cx+4,visY+2);
+    ctx.closePath();ctx.fill();
+    ctx.fillRect(cx-1.5,visY-1,3,3);
+    // Bell body (gold)
+    ctx.fillStyle='#ffd700';
+    ctx.beginPath();
+    ctx.moveTo(cx-4,visY+2);
+    ctx.lineTo(cx-7,visY+11);
+    ctx.lineTo(cx-9,visY+13);
+    ctx.lineTo(cx+9,visY+13);
+    ctx.lineTo(cx+7,visY+11);
+    ctx.lineTo(cx+4,visY+2);
+    ctx.closePath();ctx.fill();
+    // Top dome of bell
+    ctx.beginPath();
+    ctx.arc(cx,visY+3,4,Math.PI,2*Math.PI);
     ctx.fill();
-    // Specular highlight
-    ctx.fillStyle='#b8c0cc';
-    ctx.fillRect(cx-3,cy-o.h*0.4,2,1);
-    // Crack detail
-    ctx.fillStyle='#3d4450';
-    ctx.fillRect(cx,cy-1,1,3);
-    ctx.fillRect(cx+1,cy+1,1,1);
-    // Moss spots
-    ctx.fillStyle='#3a8a3a';
-    ctx.beginPath();ctx.arc(o.x+2,o.y-o.h+3,1.5,0,Math.PI*2);ctx.fill();
-    ctx.beginPath();ctx.arc(o.x+o.w-3,o.y-o.h+5,1.2,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle='#4ab84a';
-    ctx.fillRect(o.x+2,o.y-o.h+2,1,1);
-
-  } else if(o.t==='log'){
-    // Shadow
-    ctx.fillStyle='rgba(0,0,0,0.22)';
-    ctx.fillRect(o.x,o.y,o.w,2);
-    // Log body
-    const lg=ctx.createLinearGradient(0,o.y-o.h,0,o.y);
-    lg.addColorStop(0,'#a87a4f');
-    lg.addColorStop(0.4,'#8b5e3c');
-    lg.addColorStop(1,'#5c3d24');
-    ctx.fillStyle=lg;
-    ctx.fillRect(o.x+1,o.y-o.h,o.w-2,o.h);
-    // Bark texture
-    ctx.fillStyle='#6b4423';
-    for(let i=2;i<o.w-3;i+=4){
-      ctx.fillRect(o.x+i,o.y-o.h+2,1,o.h-3);
-    }
-    ctx.fillStyle='#a87a4f';
-    for(let i=4;i<o.w-3;i+=5){
-      ctx.fillRect(o.x+i,o.y-o.h+1,1,2);
-    }
-    // Left end (rings)
-    ctx.fillStyle='#a87a4f';
-    ctx.beginPath();ctx.ellipse(o.x+1,o.y-o.h/2,2,o.h/2,0,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle='#8b5e3c';
-    ctx.beginPath();ctx.ellipse(o.x+1,o.y-o.h/2,1.4,o.h/2-1,0,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle='#6b4423';
-    ctx.beginPath();ctx.ellipse(o.x+1,o.y-o.h/2,0.7,o.h/2-2,0,0,Math.PI*2);ctx.fill();
-    // Right end shadow
-    ctx.fillStyle='#3d2818';
-    ctx.beginPath();ctx.ellipse(o.x+o.w-1,o.y-o.h/2,1.5,o.h/2,0,0,Math.PI*2);ctx.fill();
-    // Moss on top
-    ctx.fillStyle='#3a8a3a';
-    ctx.fillRect(o.x+4,o.y-o.h-1,3,1);
-    ctx.fillStyle='#4ab84a';
-    ctx.fillRect(o.x+4,o.y-o.h-1,1,1);
-
-  } else {
-    // Hanging branch+vine — collision extends from sky to slide-clearance.
-    // Visual: a vine drops from the top of the screen with leaves along it,
-    // ending in a thick branch with leaf clusters that the player slides under.
-    const cx = o.x + o.w * 0.5;
-    // Vine line from sky to the branch
-    ctx.strokeStyle = '#4a3018';
-    ctx.lineWidth = 1.5;
+    // Highlight (lighter gold)
+    ctx.fillStyle='#fff5a0';
+    ctx.fillRect(cx-5,visY+4,1.5,6);
+    // Outline (dark gold for contrast)
+    ctx.strokeStyle='#a87a00';
+    ctx.lineWidth=1;
     ctx.beginPath();
-    ctx.moveTo(cx - 0.5, 0);
-    ctx.lineTo(cx - 0.5, o.y);
+    ctx.moveTo(cx-4,visY+2);
+    ctx.lineTo(cx-7,visY+11);
+    ctx.lineTo(cx-9,visY+13);
+    ctx.lineTo(cx+9,visY+13);
+    ctx.lineTo(cx+7,visY+11);
+    ctx.lineTo(cx+4,visY+2);
     ctx.stroke();
-    ctx.lineWidth = 1;
-    // Side vine
-    ctx.strokeStyle = '#3a2818';
+    // Bottom rim
+    ctx.fillStyle='#a87a00';
+    ctx.fillRect(cx-9,visY+12,18,1.5);
+    // Clapper
+    ctx.fillStyle='#a87a00';
+    ctx.beginPath();ctx.arc(cx,visY+15,1.5,0,Math.PI*2);ctx.fill();
+
+  } else if(o.t==='star'){
+    // === HANGING STAR === (slide under)
+    const visY = o.y + o.h - 10; // star center
+    // String from sky
+    ctx.strokeStyle='#fff';
+    ctx.lineWidth=0.8;
     ctx.beginPath();
-    ctx.moveTo(cx + 1, 0);
-    ctx.lineTo(cx + 1, o.y);
+    ctx.moveTo(cx,0); ctx.lineTo(cx,visY-9);
     ctx.stroke();
-    // Scattered leaves along the vine
-    for(let y=8; y<o.y-4; y+=14){
-      const off = Math.sin(y*0.3) * 3;
-      ctx.fillStyle='#1a5c1a';
-      ctx.beginPath();ctx.arc(cx+off, y, 2.5, 0, Math.PI*2);ctx.fill();
-      ctx.fillStyle='#288528';
-      ctx.beginPath();ctx.arc(cx+off-0.5, y-0.5, 1.5, 0, Math.PI*2);ctx.fill();
+    ctx.lineWidth=1;
+    // Glow
+    ctx.fillStyle='rgba(255,235,100,0.35)';
+    ctx.beginPath();ctx.arc(cx,visY,13,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='rgba(255,245,150,0.4)';
+    ctx.beginPath();ctx.arc(cx,visY,8,0,Math.PI*2);ctx.fill();
+    // Yellow star
+    ctx.fillStyle='#ffd700';
+    ctx.beginPath();
+    for(let i=0;i<10;i++){
+      const a = -Math.PI/2 + i*Math.PI/5;
+      const r = i%2===0 ? 9 : 4;
+      const sx = cx + Math.cos(a)*r;
+      const sy = visY + Math.sin(a)*r;
+      if(i===0) ctx.moveTo(sx,sy); else ctx.lineTo(sx,sy);
     }
-    // Main branch
-    const bg=ctx.createLinearGradient(0,o.y,0,o.y+5);
-    bg.addColorStop(0,'#8b6443');
-    bg.addColorStop(1,'#5c3d24');
-    ctx.fillStyle=bg;
-    ctx.fillRect(o.x,o.y,o.w,5);
-    // Bark notches
-    ctx.fillStyle='#3d2818';
-    for(let i=3;i<o.w-2;i+=5) ctx.fillRect(o.x+i,o.y+2,2,1);
-    // Dense leaf clusters hanging down (the part you slide under)
-    for(let i=0;i<o.w-2;i+=5){
-      ctx.fillStyle='#1a5c1a';
-      ctx.beginPath();ctx.arc(o.x+i+2,o.y+8,3.5,0,Math.PI*2);ctx.fill();
-      ctx.fillStyle='#288528';
-      ctx.beginPath();ctx.arc(o.x+i+2,o.y+7,2.5,0,Math.PI*2);ctx.fill();
-      ctx.fillStyle='#3aa83a';
-      ctx.fillRect(o.x+i+1,o.y+6,1,1);
-    }
-    // Single hanging leaf accent
-    ctx.fillStyle='#1a5c1a';
-    ctx.beginPath();ctx.ellipse(cx,o.y+13,2,3,0,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle='#288528';
-    ctx.beginPath();ctx.ellipse(cx,o.y+12,1.2,2,0,0,Math.PI*2);ctx.fill();
+    ctx.closePath();ctx.fill();
+    // Outline (orange for contrast)
+    ctx.strokeStyle='#cc8800';
+    ctx.lineWidth=1;
+    ctx.stroke();
+    // White highlight on one point
+    ctx.fillStyle='#fff5c0';
+    ctx.beginPath();ctx.arc(cx-1.5,visY-3,1.5,0,Math.PI*2);ctx.fill();
   }
 }
 
@@ -567,8 +676,13 @@ function update(){
   if(mode!=='loading'){
     mountains.forEach(m=>{m.x-=0.08;if(m.x<-55)m.x=GW+10;});
     hills.forEach(h=>{h.x-=0.18;if(h.x<-30)h.x=GW+10;});
-    clouds.forEach(c=>{c.x-=0.25;if(c.x<-45)c.x=GW+15;});
-    trees.forEach(t=>{t.x-=0.5;if(t.x<-20)t.x=GW+15;});
+    pines.forEach(p=>{p.x-=0.5;if(p.x<-15)p.x=GW+15;});
+    // Snowflakes always falling
+    snowflakes.forEach(s=>{
+      s.x+=s.vx; s.y+=s.vy;
+      if(s.y>GH){s.y=-2;s.x=Math.random()*GW;}
+      if(s.x<-2){s.x=GW;}
+    });
   }
   if(mode==='play'){
     score++;
@@ -576,8 +690,6 @@ function update(){
     animT++;if(animT>=8){animT=0;anim=1-anim;}
     if(P.jump){P.vy+=GRAVITY;P.y+=P.vy;if(P.y>=GROUND){P.y=GROUND;P.vy=0;P.jump=false;}}
     if(P.jump) P.slide=false;
-    bushes.forEach(b=>{b.x-=spd*0.55;if(b.x<-15)b.x=GW+15;});
-    grassTufts.forEach(g=>{g.x-=spd;if(g.x<-3)g.x=GW+3;});
     spawnT++;
     if(spawnT>=spawnI){
       spawnObs();
