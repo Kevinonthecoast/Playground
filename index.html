@@ -374,14 +374,13 @@ document.addEventListener('keyup',e=>{
   if(e.code==='ArrowDown'||e.code==='KeyS'){e.preventDefault();endSlide();}
 });
 
-// ── Main loop ─────────────────────────────────────
-function loop(){
+// ── Game logic (one fixed-timestep tick = 1/60s) ──
+function update(){
   tick++;
   for(let i=parts.length-1;i>=0;i--){
     const q=parts[i];q.x+=q.vx;q.y+=q.vy;q.vy+=0.18;q.life-=0.024;
     if(q.life<=0)parts.splice(i,1);
   }
-  // Always animate clouds & trees so screen feels alive
   if(mode!=='loading'){
     clouds.forEach(c=>{c.x-=0.25;if(c.x<-45)c.x=GW+15;});
     trees.forEach(t=>{t.x-=0.35;if(t.x<-25)t.x=GW+15;});
@@ -409,6 +408,27 @@ function loop(){
         },800);
       }
     }
+  }
+}
+
+// ── Frame loop: fixed-timestep updates, one draw per frame ──
+// This makes the game run at the same speed regardless of frame rate.
+const FRAME_MS = 1000/60;       // logical tick = 60Hz
+let lastFrameTime = performance.now();
+let timeAccumulator = 0;
+
+function loop(){
+  const now = performance.now();
+  let elapsed = now - lastFrameTime;
+  lastFrameTime = now;
+  if(elapsed > 250) elapsed = 250;   // cap after tab switch / hiccup
+  timeAccumulator += elapsed;
+
+  // Run as many logical updates as needed to catch up
+  let safety = 0;
+  while(timeAccumulator >= FRAME_MS && safety++ < 5){
+    update();
+    timeAccumulator -= FRAME_MS;
   }
 
   ctx.clearRect(0,0,canvas.width,canvas.height);
