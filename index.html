@@ -88,9 +88,9 @@ let leaderboard = [];
 const P = {
   x:70, y:GROUND, vy:0, jump:false, slide:false, slideT:0, dead:false,
   get bx(){ return this.x-12; },
-  get by(){ return this.slide ? this.y-16 : this.y-CH+8; },
+  get by(){ return this.slide ? this.y-32 : this.y-CH+8; },
   get bw(){ return 24; },
-  get bh(){ return this.slide ? 16 : CH-8; },
+  get bh(){ return this.slide ? 32 : CH-8; },
 };
 
 let obs=[], clouds=[], trees=[], bushes=[], parts=[];
@@ -99,8 +99,8 @@ function spawnObs() {
   const r=Math.random();
   if      (r<0.25) obs.push({t:'snowman',x:GW+5,y:GROUND,   w:22,h:34});  // jump
   else if (r<0.50) obs.push({t:'xtree',  x:GW+5,y:GROUND,   w:24,h:38});  // jump
-  else if (r<0.75) obs.push({t:'bell',   x:GW+5,y:GROUND-40,w:20,h:20});  // slide
-  else             obs.push({t:'star',   x:GW+5,y:GROUND-40,w:22,h:20});  // slide
+  else if (r<0.75) obs.push({t:'bell',   x:GW+5,y:GROUND-62,w:20,h:22});  // slide (bottom @ GROUND-40)
+  else             obs.push({t:'star',   x:GW+5,y:GROUND-62,w:22,h:22});  // slide
 }
 function hits(o) {
   if(o.t==='bell' || o.t==='star'){
@@ -230,7 +230,7 @@ function drawElf(cx,by,slide,af,dead) {
     ctx.fillStyle='rgba(58,142,255,0.7)';
     ctx.beginPath();ctx.ellipse(-CH*0.42-tearOffset,-3,1,2,0,0,Math.PI*2);ctx.fill();
   }else if(slide){
-    ctx.drawImage(elfImg,-CW*0.9,-CH*0.45,CW*1.8,CH*0.45);
+    ctx.drawImage(elfImg,-CW*0.7,-CH*0.55,CW*1.4,CH*0.55);
   }else{
     ctx.rotate(0.08); ctx.translate(0,af===0?0:-1.5);
     ctx.drawImage(elfImg,-CW/2,-CH,CW,CH);
