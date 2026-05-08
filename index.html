@@ -102,7 +102,12 @@ function spawnObs() {
   else             obs.push({t:'branch',x:GW+5,y:GROUND-42,w:30,h:6});
 }
 function hits(o) {
-  const oy=o.t==='branch'?o.y:o.y-o.h;
+  if(o.t==='branch'){
+    // Branch hangs from sky — collision spans entire column above slide level
+    // so jumps cannot clear it. Bottom = o.y + o.h + 10 (incl. hanging leaves)
+    return P.bx<o.x+o.w && P.bx+P.bw>o.x && P.by<o.y+o.h+10;
+  }
+  const oy=o.y-o.h;
   return P.bx<o.x+o.w && P.bx+P.bw>o.x && P.by<oy+o.h && P.by+P.bh>oy;
 }
 let mountains=[], hills=[], grassTufts=[], flowers=[];
@@ -441,8 +446,33 @@ function drawObs(o){
     ctx.fillRect(o.x+4,o.y-o.h-1,1,1);
 
   } else {
-    // Hanging branch with detailed leaves
-    // Branch
+    // Hanging branch+vine — collision extends from sky to slide-clearance.
+    // Visual: a vine drops from the top of the screen with leaves along it,
+    // ending in a thick branch with leaf clusters that the player slides under.
+    const cx = o.x + o.w * 0.5;
+    // Vine line from sky to the branch
+    ctx.strokeStyle = '#4a3018';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(cx - 0.5, 0);
+    ctx.lineTo(cx - 0.5, o.y);
+    ctx.stroke();
+    ctx.lineWidth = 1;
+    // Side vine
+    ctx.strokeStyle = '#3a2818';
+    ctx.beginPath();
+    ctx.moveTo(cx + 1, 0);
+    ctx.lineTo(cx + 1, o.y);
+    ctx.stroke();
+    // Scattered leaves along the vine
+    for(let y=8; y<o.y-4; y+=14){
+      const off = Math.sin(y*0.3) * 3;
+      ctx.fillStyle='#1a5c1a';
+      ctx.beginPath();ctx.arc(cx+off, y, 2.5, 0, Math.PI*2);ctx.fill();
+      ctx.fillStyle='#288528';
+      ctx.beginPath();ctx.arc(cx+off-0.5, y-0.5, 1.5, 0, Math.PI*2);ctx.fill();
+    }
+    // Main branch
     const bg=ctx.createLinearGradient(0,o.y,0,o.y+5);
     bg.addColorStop(0,'#8b6443');
     bg.addColorStop(1,'#5c3d24');
@@ -451,7 +481,7 @@ function drawObs(o){
     // Bark notches
     ctx.fillStyle='#3d2818';
     for(let i=3;i<o.w-2;i+=5) ctx.fillRect(o.x+i,o.y+2,2,1);
-    // Leaf clusters hanging down
+    // Dense leaf clusters hanging down (the part you slide under)
     for(let i=0;i<o.w-2;i+=5){
       ctx.fillStyle='#1a5c1a';
       ctx.beginPath();ctx.arc(o.x+i+2,o.y+8,3.5,0,Math.PI*2);ctx.fill();
@@ -462,9 +492,9 @@ function drawObs(o){
     }
     // Single hanging leaf accent
     ctx.fillStyle='#1a5c1a';
-    ctx.beginPath();ctx.ellipse(o.x+o.w*0.5,o.y+13,2,3,0,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.ellipse(cx,o.y+13,2,3,0,0,Math.PI*2);ctx.fill();
     ctx.fillStyle='#288528';
-    ctx.beginPath();ctx.ellipse(o.x+o.w*0.5,o.y+12,1.2,2,0,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.ellipse(cx,o.y+12,1.2,2,0,0,Math.PI*2);ctx.fill();
   }
 }
 
