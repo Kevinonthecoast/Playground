@@ -110,16 +110,26 @@ function hits(o) {
   const oy=o.y-o.h;
   return P.bx<o.x+o.w && P.bx+P.bw>o.x && P.by<oy+o.h && P.by+P.bh>oy;
 }
-let mountains=[], hills=[], grassTufts=[], flowers=[];
+let mountains=[], hills=[], grassTufts=[];
+// Cached gradients — rebuilt once instead of every frame
+let SKY_GRAD=null, GROUND_GRAD=null;
+function rebuildGradients(){
+  SKY_GRAD = ctx.createLinearGradient(0,0,0,GROUND);
+  SKY_GRAD.addColorStop(0,'#a8d4f0');
+  SKY_GRAD.addColorStop(1,'#e8f4e0');
+  GROUND_GRAD = ctx.createLinearGradient(0,GROUND,0,GH);
+  GROUND_GRAD.addColorStop(0,'#5a8c3f');
+  GROUND_GRAD.addColorStop(1,'#3d6b27');
+}
 function initBG() {
-  clouds=[]; trees=[]; bushes=[]; mountains=[]; hills=[]; grassTufts=[]; flowers=[];
-  for(let i=0;i<5;i++) clouds.push({x:i*80+20,y:12+Math.random()*18,w:26+Math.random()*16});
-  for(let i=0;i<4;i++) mountains.push({x:i*100+Math.random()*30,h:30+Math.random()*15});
-  for(let i=0;i<6;i++) hills.push({x:i*70+Math.random()*30,h:14+Math.random()*8});
-  for(let i=0;i<10;i++) trees.push({x:i*38+Math.random()*15,h:22+Math.random()*16,type:i%3});
-  for(let i=0;i<10;i++) bushes.push({x:i*38+Math.random()*15,r:5+Math.random()*4});
-  for(let i=0;i<40;i++) grassTufts.push({x:i*8+Math.random()*4,h:1+Math.random()*2});
-  for(let i=0;i<6;i++) flowers.push({x:i*55+Math.random()*40,c:['#ff6b9d','#ffd93d','#fff'][i%3]});
+  clouds=[]; trees=[]; bushes=[]; mountains=[]; hills=[]; grassTufts=[];
+  for(let i=0;i<3;i++) clouds.push({x:i*120+30,y:15+Math.random()*15,w:28+Math.random()*12});
+  for(let i=0;i<3;i++) mountains.push({x:i*120+Math.random()*30,h:28+Math.random()*12});
+  for(let i=0;i<4;i++) hills.push({x:i*90+Math.random()*30,h:12+Math.random()*6});
+  for(let i=0;i<5;i++) trees.push({x:i*70+Math.random()*15,h:20+Math.random()*10,type:i%3});
+  for(let i=0;i<5;i++) bushes.push({x:i*70+Math.random()*15,r:4+Math.random()*3});
+  for(let i=0;i<20;i++) grassTufts.push({x:i*16+Math.random()*4,h:1+Math.random()*1.5});
+  rebuildGradients();
 }
 function burst(x,y) {
   const pal=['#cc2200','#2d8a2d','#fff','#f0c090','#ffdd00'];
@@ -222,160 +232,84 @@ function drawElf(cx,by,slide,af,dead) {
 function box(x,y,w,h,c){ctx.fillStyle=c;ctx.fillRect(x,y,w,h);}
 
 function drawBG(){
-  // Sky gradient (dawn-ish)
-  const g=ctx.createLinearGradient(0,0,0,GROUND);
-  g.addColorStop(0,'#7ec0ee');
-  g.addColorStop(0.6,'#c8e0f0');
-  g.addColorStop(1,'#e8f0d8');
-  ctx.fillStyle=g;ctx.fillRect(0,0,GW,GH);
+  // Sky (cached gradient)
+  ctx.fillStyle = SKY_GRAD;
+  ctx.fillRect(0,0,GW,GH);
 
-  // Sun with soft glow
-  const sx=GW-44, sy=30;
-  ctx.fillStyle='rgba(255,240,180,0.25)';
-  ctx.beginPath();ctx.arc(sx,sy,18,0,Math.PI*2);ctx.fill();
-  ctx.fillStyle='rgba(255,230,150,0.45)';
-  ctx.beginPath();ctx.arc(sx,sy,12,0,Math.PI*2);ctx.fill();
+  // Soft sun (single circle)
+  ctx.fillStyle='rgba(255,235,170,0.35)';
+  ctx.beginPath();ctx.arc(GW-40,28,12,0,Math.PI*2);ctx.fill();
   ctx.fillStyle='#fff5c0';
-  ctx.beginPath();ctx.arc(sx,sy,7,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.arc(GW-40,28,6,0,Math.PI*2);ctx.fill();
 
-  // Distant mountains (parallax — slow scroll)
+  // Distant mountains — washed out, blue tint
+  ctx.fillStyle='#a8b0c8';
   mountains.forEach(m=>{
-    const px=m.x;
-    ctx.fillStyle='#7c87b5';
     ctx.beginPath();
-    ctx.moveTo(px,GROUND-15);
-    ctx.lineTo(px+18,GROUND-15-m.h);
-    ctx.lineTo(px+24,GROUND-15-m.h*0.85);
-    ctx.lineTo(px+32,GROUND-15-m.h*0.95);
-    ctx.lineTo(px+50,GROUND-15);
-    ctx.closePath();ctx.fill();
-    // Snow cap
-    ctx.fillStyle='#e8e8f0';
-    ctx.beginPath();
-    ctx.moveTo(px+14,GROUND-15-m.h*0.78);
-    ctx.lineTo(px+18,GROUND-15-m.h);
-    ctx.lineTo(px+22,GROUND-15-m.h*0.78);
+    ctx.moveTo(m.x,GROUND-12);
+    ctx.lineTo(m.x+22,GROUND-12-m.h);
+    ctx.lineTo(m.x+44,GROUND-12);
     ctx.closePath();ctx.fill();
   });
 
-  // Mid-range hills (rolling)
+  // Rolling hills — single muted layer
+  ctx.fillStyle='#94b890';
   hills.forEach(h=>{
-    ctx.fillStyle='#6a9a6a';
     ctx.beginPath();
-    ctx.ellipse(h.x,GROUND-2,28,h.h,0,Math.PI,2*Math.PI);
-    ctx.fill();
-    ctx.fillStyle='rgba(255,255,255,0.15)';
-    ctx.beginPath();
-    ctx.ellipse(h.x-6,GROUND-h.h*0.7,15,h.h*0.4,0,Math.PI,2*Math.PI);
+    ctx.ellipse(h.x,GROUND-2,26,h.h,0,Math.PI,2*Math.PI);
     ctx.fill();
   });
 
-  // Soft fluffy clouds
+  // Simple clouds (single arc cluster)
+  ctx.fillStyle='rgba(255,255,255,0.85)';
   clouds.forEach(c=>{
-    ctx.fillStyle='rgba(255,255,255,0.95)';
     ctx.beginPath();
-    ctx.arc(c.x+c.w*0.2,c.y+5,5,0,Math.PI*2);
-    ctx.arc(c.x+c.w*0.4,c.y+2,7,0,Math.PI*2);
-    ctx.arc(c.x+c.w*0.6,c.y+1,8,0,Math.PI*2);
-    ctx.arc(c.x+c.w*0.8,c.y+4,6,0,Math.PI*2);
-    ctx.arc(c.x+c.w*0.5,c.y+7,7,0,Math.PI*2);
-    ctx.fill();
-    // Subtle bottom shadow
-    ctx.fillStyle='rgba(180,200,220,0.35)';
-    ctx.beginPath();
-    ctx.ellipse(c.x+c.w*0.5,c.y+9,c.w*0.35,2,0,0,Math.PI*2);
+    ctx.arc(c.x+c.w*0.3,c.y+3,5,0,Math.PI*2);
+    ctx.arc(c.x+c.w*0.55,c.y,7,0,Math.PI*2);
+    ctx.arc(c.x+c.w*0.8,c.y+3,5,0,Math.PI*2);
     ctx.fill();
   });
 
-  // Trees — three varieties
+  // Trees — washed out / smaller (faded into background)
   trees.forEach(t=>{
+    // Trunk (thin, faded)
+    ctx.fillStyle='#7a614a';
+    ctx.fillRect(t.x-1,GROUND-t.h*0.25,2,t.h*0.25);
+    // Foliage — single muted blob
+    ctx.fillStyle = t.type===0 ? '#7aa07a' : t.type===1 ? '#85b078' : '#88a878';
     if(t.type===0){
-      // Pine tree (triangular)
-      ctx.fillStyle='#5c3d1e';
-      ctx.fillRect(t.x-1,GROUND-t.h*0.22,3,t.h*0.22);
-      for(let i=0;i<3;i++){
-        const ly=GROUND-t.h+i*t.h*0.28;
-        const lw=14-i*3;
-        ctx.fillStyle=i===0?'#1f5a1f':i===1?'#246624':'#287528';
-        ctx.beginPath();
-        ctx.moveTo(t.x-lw/2,ly+t.h*0.32);
-        ctx.lineTo(t.x,ly);
-        ctx.lineTo(t.x+lw/2,ly+t.h*0.32);
-        ctx.closePath();ctx.fill();
-      }
-      ctx.fillStyle='rgba(255,255,255,0.18)';
-      ctx.fillRect(t.x-1,GROUND-t.h+2,1,t.h*0.6);
-    } else if(t.type===1){
-      // Round deciduous tree
-      ctx.fillStyle='#5c3d1e';
-      ctx.fillRect(t.x-1,GROUND-t.h*0.4,3,t.h*0.4);
-      ctx.fillStyle='#1b5e1b';
-      ctx.beginPath();ctx.arc(t.x,GROUND-t.h*0.65,t.h*0.4,0,Math.PI*2);ctx.fill();
-      ctx.fillStyle='#288528';
-      ctx.beginPath();ctx.arc(t.x-2,GROUND-t.h*0.72,t.h*0.32,0,Math.PI*2);ctx.fill();
-      ctx.fillStyle='#3aa83a';
-      ctx.beginPath();ctx.arc(t.x-3,GROUND-t.h*0.82,t.h*0.16,0,Math.PI*2);ctx.fill();
+      // Pine — simple triangle
+      ctx.beginPath();
+      ctx.moveTo(t.x-7,GROUND-t.h*0.25);
+      ctx.lineTo(t.x,GROUND-t.h);
+      ctx.lineTo(t.x+7,GROUND-t.h*0.25);
+      ctx.closePath();ctx.fill();
     } else {
-      // Tall narrow cypress
-      ctx.fillStyle='#5c3d1e';
-      ctx.fillRect(t.x-1,GROUND-t.h*0.18,2,t.h*0.18);
-      ctx.fillStyle='#1f5a1f';
-      ctx.beginPath();ctx.ellipse(t.x,GROUND-t.h*0.55,t.h*0.18,t.h*0.5,0,0,Math.PI*2);ctx.fill();
-      ctx.fillStyle='#288528';
-      ctx.beginPath();ctx.ellipse(t.x-1,GROUND-t.h*0.6,t.h*0.12,t.h*0.4,0,0,Math.PI*2);ctx.fill();
+      ctx.beginPath();
+      ctx.arc(t.x,GROUND-t.h*0.6,t.h*0.32,0,Math.PI*2);
+      ctx.fill();
     }
   });
 
-  // Ground — layered grass
-  const gg=ctx.createLinearGradient(0,GROUND,0,GH);
-  gg.addColorStop(0,'#4a7c2f');gg.addColorStop(1,'#2e5a1f');
-  ctx.fillStyle=gg;ctx.fillRect(0,GROUND,GW,GH-GROUND);
-  // Top edge highlight
-  ctx.fillStyle='#5c8a3a';
-  ctx.fillRect(0,GROUND,GW,1);
+  // Ground (cached gradient)
+  ctx.fillStyle = GROUND_GRAD;
+  ctx.fillRect(0,GROUND,GW,GH-GROUND);
+  // Edge line
   ctx.fillStyle='#3d6b27';
-  ctx.fillRect(0,GROUND+1,GW,1);
+  ctx.fillRect(0,GROUND,GW,1);
 
-  // Grass tufts
+  // Sparse grass tufts (subtle)
   ctx.fillStyle='#6ba63a';
   grassTufts.forEach(g=>{
     ctx.fillRect(g.x,GROUND+1,1,g.h);
-    ctx.fillRect(g.x+2,GROUND+1,1,g.h+1);
-  });
-  ctx.fillStyle='#85c247';
-  grassTufts.forEach(g=>{
-    ctx.fillRect(g.x+1,GROUND+1,1,1);
   });
 
-  // Flowers scattered on ground
-  flowers.forEach(f=>{
-    // stem
-    ctx.fillStyle='#3a7a2a';
-    ctx.fillRect(f.x,GROUND+2,1,3);
-    // petal
-    ctx.fillStyle=f.c;
-    ctx.fillRect(f.x-1,GROUND+1,3,1);
-    ctx.fillRect(f.x,GROUND,1,1);
-    // center
-    ctx.fillStyle='#ffd93d';
-    ctx.fillRect(f.x,GROUND+1,1,1);
-  });
-
-  // Layered foreground bushes (rounder, with depth)
+  // Sparse foreground bushes — single muted blob (no longer competes with obstacles)
+  ctx.fillStyle='#5a8a4a';
   bushes.forEach(b=>{
-    // shadow
-    ctx.fillStyle='rgba(0,0,0,0.18)';
-    ctx.beginPath();ctx.ellipse(b.x,GROUND+1,b.r,2,0,0,Math.PI*2);ctx.fill();
-    // base layer
-    ctx.fillStyle='#1a4c1a';
-    ctx.beginPath();ctx.arc(b.x-b.r*0.4,GROUND-b.r*0.5,b.r*0.85,0,Math.PI*2);ctx.fill();
-    ctx.beginPath();ctx.arc(b.x+b.r*0.4,GROUND-b.r*0.5,b.r*0.85,0,Math.PI*2);ctx.fill();
-    // mid layer
-    ctx.fillStyle='#2a7a2a';
-    ctx.beginPath();ctx.arc(b.x,GROUND-b.r*0.85,b.r*0.75,0,Math.PI*2);ctx.fill();
-    // highlight
-    ctx.fillStyle='#4ab84a';
-    ctx.beginPath();ctx.arc(b.x-b.r*0.35,GROUND-b.r*1.0,b.r*0.3,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();
+    ctx.arc(b.x,GROUND-b.r*0.5,b.r*0.8,0,Math.PI*2);
+    ctx.fill();
   });
 }
 
@@ -644,7 +578,6 @@ function update(){
     if(P.jump) P.slide=false;
     bushes.forEach(b=>{b.x-=spd*0.55;if(b.x<-15)b.x=GW+15;});
     grassTufts.forEach(g=>{g.x-=spd;if(g.x<-3)g.x=GW+3;});
-    flowers.forEach(f=>{f.x-=spd;if(f.x<-3)f.x=GW+3;});
     spawnT++;
     if(spawnT>=spawnI){
       spawnObs();
@@ -727,10 +660,24 @@ function loop(){
 }
 
 initBG();
-loop();
-// Use setInterval as primary loop driver — iOS Safari sometimes pauses
-// requestAnimationFrame on idle pages, which froze the game on first load.
-setInterval(loop, 16);
+
+// requestAnimationFrame for smooth animation (syncs to display refresh).
+// setInterval watchdog restarts rAF if iOS Safari pauses it on idle pages.
+let rafId = 0, lastRaf = performance.now();
+function rafLoop(){
+  lastRaf = performance.now();
+  loop();
+  rafId = requestAnimationFrame(rafLoop);
+}
+rafId = requestAnimationFrame(rafLoop);
+setInterval(()=>{
+  if(performance.now() - lastRaf > 500){
+    if(rafId) cancelAnimationFrame(rafId);
+    lastFrameTime = performance.now();
+    rafId = requestAnimationFrame(rafLoop);
+  }
+}, 1000);
+
 fetchLeaderboard();
 // Refresh leaderboard every 5s on non-play screens for live ranking
 setInterval(()=>{ if(mode!=='play') fetchLeaderboard(); }, 5000);
