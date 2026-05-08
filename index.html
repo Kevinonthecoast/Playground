@@ -158,8 +158,9 @@ function hideNameForm() { nameForm.style.display = 'none'; }
 submitBtn.addEventListener('click', async () => {
   const name = nameInput.value.trim() || '익명';
   hideNameForm();
-  await pushScore(name, score);
   mode = 'board';
+  await pushScore(name, score);
+  await fetchLeaderboard();
 });
 skipBtn.addEventListener('click', () => {
   hideNameForm();
@@ -255,7 +256,7 @@ function drawStart(){
   ctx.fillText('탭 → 점프   |   아래 스와이프 → 슬라이드',GW/2,64);
   if(Math.floor(tick/30)%2===0){
     ctx.fillStyle='#ffe066';ctx.font='bold 9px monospace';
-    ctx.fillText('화면을 탭해서 시작!',GW/2,100);
+    ctx.fillText('아무 키나 눌러서 시작!',GW/2,100);
   }
   // Show leaderboard on start screen
   if(leaderboard.length>0) drawLeaderboardSmall();
@@ -271,6 +272,19 @@ function drawLeaderboardSmall(){
     ctx.fillStyle = i===0?'#ffd700':i===1?'#c0c0c0':i===2?'#cd7f32':'#fff';
     ctx.fillText(medals[i]+' '+e.name.substring(0,8)+'  '+e.score,GW/2,130+i*10);
   });
+}
+
+function drawDead(){
+  ctx.fillStyle='rgba(0,0,0,0.55)';ctx.fillRect(0,0,GW,GH);
+  ctx.textAlign='center';
+  ctx.fillStyle='#ff4444';ctx.font='bold 22px monospace';
+  ctx.fillText('GAME OVER',GW/2,70);
+  ctx.fillStyle='#fff';ctx.font='10px monospace';
+  ctx.fillText('점수: '+score,GW/2,92);
+  if(score>0&&score===hi){
+    ctx.fillStyle='#66ffaa';ctx.font='bold 9px monospace';
+    ctx.fillText('🎉 신기록!',GW/2,108);
+  }
 }
 
 function drawBoard(){
@@ -340,14 +354,17 @@ function loop(){
     const q=parts[i];q.x+=q.vx;q.y+=q.vy;q.vy+=0.18;q.life-=0.024;
     if(q.life<=0)parts.splice(i,1);
   }
+  // Always animate clouds & trees so screen feels alive
+  if(mode!=='loading'){
+    clouds.forEach(c=>{c.x-=0.25;if(c.x<-45)c.x=GW+15;});
+    trees.forEach(t=>{t.x-=0.35;if(t.x<-25)t.x=GW+15;});
+  }
   if(mode==='play'){
     score++;
     spd=2.8+score*0.0012;
     animT++;if(animT>=8){animT=0;anim=1-anim;}
     if(P.jump){P.vy+=GRAVITY;P.y+=P.vy;if(P.y>=GROUND){P.y=GROUND;P.vy=0;P.jump=false;}}
     if(P.slide){P.slideT--;if(P.slideT<=0)P.slide=false;}
-    clouds.forEach(c=>{c.x-=0.25;if(c.x<-45)c.x=GW+15;});
-    trees.forEach(t=>{t.x-=0.55;if(t.x<-25)t.x=GW+15;});
     bushes.forEach(b=>{b.x-=spd*0.55;if(b.x<-15)b.x=GW+15;});
     spawnT++;spawnI=Math.max(55,90-Math.floor(score/600));
     if(spawnT>=spawnI){spawnObs();spawnT=0;}
@@ -358,9 +375,11 @@ function loop(){
         mode='dead';P.dead=true;
         if(score>hi){hi=score;localStorage.setItem('elfHi',hi);}
         burst(P.x,P.y-CH/2);
+        fetchLeaderboard();
         setTimeout(()=>{
-          showNameForm(score);
-        },600);
+          if(score>0) showNameForm(score);
+          else mode='board';
+        },800);
       }
     }
   }
@@ -392,6 +411,7 @@ function loop(){
 
   drawHUD();
   if(mode==='start') drawStart();
+  if(mode==='dead') drawDead();
   if(mode==='board') drawBoard();
 
   ctx.restore();
