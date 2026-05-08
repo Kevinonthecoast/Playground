@@ -313,7 +313,8 @@ let ty0=0;
 function doJump(){
   if(nameForm.style.display==='flex') return;
   if(mode==='loading'||mode==='start'){reset();return;}
-  if(mode==='board'||mode==='dead'){reset();return;}
+  if(mode==='board'){reset();return;}
+  if(mode==='dead'){return;}
   if(mode==='play'&&!P.jump&&!P.slide){P.vy=JUMP_V;P.jump=true;}
 }
 function doSlide(){
@@ -328,8 +329,8 @@ canvas.addEventListener('touchend',e=>{
 },{passive:false});
 canvas.addEventListener('click',doJump);
 document.addEventListener('keydown',e=>{
-  if(e.code==='Space'||e.code==='ArrowUp'){e.preventDefault();doJump();}
-  if(e.code==='ArrowDown'||e.code==='KeyS'){e.preventDefault();doSlide();}
+  if(e.code==='ArrowDown'||e.code==='KeyS'){e.preventDefault();doSlide();return;}
+  e.preventDefault();doJump();
 });
 
 // ── Main loop ─────────────────────────────────────
@@ -341,7 +342,7 @@ function loop(){
   }
   if(mode==='play'){
     score++;
-    spd=2.8+score*0.0006;
+    spd=2.8+score*0.0012;
     animT++;if(animT>=8){animT=0;anim=1-anim;}
     if(P.jump){P.vy+=GRAVITY;P.y+=P.vy;if(P.y>=GROUND){P.y=GROUND;P.vy=0;P.jump=false;}}
     if(P.slide){P.slideT--;if(P.slideT<=0)P.slide=false;}
@@ -357,11 +358,9 @@ function loop(){
         mode='dead';P.dead=true;
         if(score>hi){hi=score;localStorage.setItem('elfHi',hi);}
         burst(P.x,P.y-CH/2);
-        // Show name entry after short delay
         setTimeout(()=>{
-          if(score>0) showNameForm(score);
-          else{mode='board';fetchLeaderboard();}
-        },800);
+          showNameForm(score);
+        },600);
       }
     }
   }
