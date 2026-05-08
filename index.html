@@ -393,7 +393,7 @@ function loop(){
     ctx.fillStyle='#1a2a1a';ctx.fillRect(0,0,GW,GH);
     ctx.fillStyle='#fff';ctx.font='10px monospace';ctx.textAlign='center';
     ctx.fillText('로딩 중...',GW/2,GH/2);
-    ctx.restore();requestAnimationFrame(loop);return;
+    ctx.restore();return;
   }
 
   drawBG();
@@ -415,11 +415,13 @@ function loop(){
   if(mode==='board') drawBoard();
 
   ctx.restore();
-  requestAnimationFrame(loop);
 }
 
 initBG();
 loop();
+// Use setInterval as primary loop driver — iOS Safari sometimes pauses
+// requestAnimationFrame on idle pages, which froze the game on first load.
+setInterval(loop, 16);
 fetchLeaderboard();
 loadElf().then(()=>{mode='start';});
 setTimeout(()=>{ if(mode==='loading') mode='start'; }, 3000);
