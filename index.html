@@ -311,8 +311,8 @@ function reset(){
 // ── Input ─────────────────────────────────────────
 let ty0=0;
 function doJump(){
-  if(mode==='loading'||nameForm.style.display==='flex') return;
-  if(mode==='start'){reset();return;}
+  if(nameForm.style.display==='flex') return;
+  if(mode==='loading'||mode==='start'){reset();return;}
   if(mode==='board'||mode==='dead'){reset();return;}
   if(mode==='play'&&!P.jump&&!P.slide){P.vy=JUMP_V;P.jump=true;}
 }
@@ -403,6 +403,7 @@ initBG();
 loop();
 fetchLeaderboard();
 loadElf().then(()=>{mode='start';});
+setTimeout(()=>{ if(mode==='loading') mode='start'; }, 3000);
 </script>
 </body>
 </html>
